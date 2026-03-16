@@ -11,13 +11,13 @@ st.markdown("Comparativa cuantitativa del riesgo de mercado y evaluación de opc
 
 # --- Barra lateral para parámetros ---
 st.sidebar.header("⚙️ Parámetros del Mercado")
-S0 = st.sidebar.number_input("Precio del Activo (S0)", value=120.0, step=1.0)
+S0 = st.sidebar.number_input("Precio del Activo (S_0)", value=120.0, step=1.0)
 K = st.sidebar.number_input("Precio de Ejercicio (K)", value=125.0, step=1.0)
 T = st.sidebar.slider("Tiempo al Vencimiento (Años)", min_value=0.01, max_value=1.0, value=0.25)
 r = st.sidebar.number_input("Tasa Libre de Riesgo (r)", value=0.04, step=0.01)
 
 st.sidebar.header("📊 Dinámica de Volatilidad")
-sigma0 = st.sidebar.slider("Volatilidad Inicial (σ0)", 0.1, 1.0, 0.35)
+sigma0 = st.sidebar.slider("Volatilidad Inicial (σ_0)", 0.1, 1.0, 0.35)
 kappa = st.sidebar.slider("Reversión a la Media (κ)", 0.0, 5.0, 2.5)
 theta_pct = st.sidebar.slider("Vol. de Largo Plazo (%)", 10, 100, 30)
 theta = (theta_pct / 100)**2
