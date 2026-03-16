@@ -1,5 +1,5 @@
 # Dynamic Option Valuation and Risk Management
-🚀 **Live Web App:** [Interactive Dashboard]([https://blackscholevsheston-option-valuation.streamlit.app/])
+🚀 **Live Web App:** https://blackscholevsheston-option-valuation.streamlit.app/ 
 
 ## 1. Problem Statement
 This project focuses on the valuation and risk management of a portfolio consisting of **European Call Options** on a highly volatile technology stock. 
