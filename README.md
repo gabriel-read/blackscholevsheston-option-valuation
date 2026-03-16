@@ -56,7 +56,7 @@ To run this project, you need:
 * Black, F., & Scholes, M. (1973). The Pricing of Options and Corporate Liabilities. *Journal of Political Economy*, 81(3), 637-654.
 * Heston, S. L. (1993). A Closed-Form Solution for Options with Stochastic Volatility with Applications to Bond and Currency Options. *The Review of Financial Studies*, 6(2), 327-343.
 * Hull, J. C. (2017). *Options, Futures, and Other Derivatives*. Pearson.
-
+* https://notebooklm.google.com/notebook/9348b2c5-c802-45f1-818f-575ded9786c0 *
 ---
 **Author:** Gabriel Read  
 **Institution:** Instituto Tecnológico de Santo Domingo (INTEC)  
