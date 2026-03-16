@@ -33,6 +33,7 @@ The simulation and valuation are based on the following market data:
 ## 4. Analysis and Results
 
 ### Comparison of Models (Part A)
+![Evolución de las Griegas](docs/Figure_1.png)
 Quantitative analysis of the valuation gap between Black-Scholes and Heston. It includes the evolution of the "Greeks" (Delta, Gamma, Vega) over time.
 
 ### Hedging Optimization (Part B)
