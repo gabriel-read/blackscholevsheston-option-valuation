@@ -26,6 +26,11 @@ nu = st.sidebar.slider("Volatilidad de la Volatilidad (ν)", 0.01, 1.0, 0.15)
 rho = st.sidebar.slider("Correlación (ρ)", -1.0, 1.0, -0.7)
 v0 = sigma0**2
 c_base = 0.0015 # Costo de transacción base (0.15%)
+c_alto = 0.005  # Costo mercado ilíquido (0.50%)
+
+st.sidebar.markdown("---")
+# BOTÓN MÁGICO PARA LA PRESENTACIÓN
+modo_presentacion = st.sidebar.checkbox("🔒 Modo Presentación (Semilla Fija)", value=True, help="Fija la semilla estocástica para que los resultados coincidan exactamente con el informe escrito.")
 
 # --- Funciones de Valoración ---
 @st.cache_data
@@ -58,26 +63,39 @@ def heston_price(S0, K, T, r, kappa, theta, nu, v0, rho):
         return 0.0
 
 @st.cache_data
-def simulate_delta_hedging(N_steps, cost_rate, S0, K, T, r, sigma0):
-    np.random.seed(42) # Semilla fijada estrictamente para coincidir con el informe
-    dt = T / N_steps
-    S_path = [S0]
-    for _ in range(N_steps):
-        Z = np.random.normal(0, 1)
-        S_next = S_path[-1] * np.exp((r - 0.5 * sigma0**2) * dt + sigma0 * np.sqrt(dt) * Z)
-        S_path.append(S_next)
+def calcular_simulaciones_hedging(S0, K, T, r, sigma0, c_base, c_alto, fixed_seed):
+    if fixed_seed:
+        np.random.seed(42) # Semilla de la presentación
+    else:
+        np.random.seed(None) # Simulación 100% aleatoria
+        
+    def run_path(N_steps, cost_rate):
+        dt = T / N_steps
+        S_path = [S0]
+        for _ in range(N_steps):
+            Z = np.random.normal(0, 1)
+            S_next = S_path[-1] * np.exp((r - 0.5 * sigma0**2) * dt + sigma0 * np.sqrt(dt) * Z)
+            S_path.append(S_next)
+        
+        total_cost = 0
+        prev_delta = 0
+        for i in range(N_steps):
+            t_remain = T - i * dt
+            if t_remain <= 0: break
+            d1 = (np.log(S_path[i] / K) + (r + 0.5 * sigma0**2) * t_remain) / (sigma0 * np.sqrt(t_remain))
+            current_delta = norm.cdf(d1)
+            shares_traded = abs(current_delta - prev_delta)
+            total_cost += shares_traded * S_path[i] * cost_rate
+            prev_delta = current_delta
+        return total_cost
+
+    # Se ejecutan en el orden exacto del Jupyter Notebook
+    costo_diario = run_path(90, c_base)
+    costo_semanal = run_path(12, c_base)
+    costo_diario_alto = run_path(90, c_alto)
+    costo_semanal_alto = run_path(12, c_alto)
     
-    total_cost = 0
-    prev_delta = 0
-    for i in range(N_steps):
-        t_remain = T - i * dt
-        if t_remain <= 0: break
-        d1 = (np.log(S_path[i] / K) + (r + 0.5 * sigma0**2) * t_remain) / (sigma0 * np.sqrt(t_remain))
-        current_delta = norm.cdf(d1)
-        shares_traded = abs(current_delta - prev_delta)
-        total_cost += shares_traded * S_path[i] * cost_rate
-        prev_delta = current_delta
-    return total_cost
+    return costo_diario, costo_semanal, costo_diario_alto, costo_semanal_alto
 
 # --- PARTE A: Cálculos y Métricas ---
 bs_price = black_scholes_call(S0, K, T, r, sigma0)
@@ -114,30 +132,26 @@ with st.spinner('Procesando simulación estocástica y derivadas numéricas...')
         deltas_he.append((P_up - P_down) / (2 * dS))
         gammas_he.append((P_up - 2 * P_mid + P_down) / (dS**2))
 
-    # Creación de dashboard interactivo con Plotly
     fig = make_subplots(rows=1, cols=3, subplot_titles=('Evolución de Delta (Δ)', 'Evolución de Gamma (Γ)', 'Evolución de Vega (V)'))
     
-    # Trazos Delta
     fig.add_trace(go.Scatter(x=tiempos, y=deltas_bs, mode='lines', name='BS Delta', line=dict(color='#EF553B')), row=1, col=1)
     fig.add_trace(go.Scatter(x=tiempos, y=deltas_he, mode='lines', name='Heston Delta', line=dict(color='#636EFA', dash='dash')), row=1, col=1)
     
-    # Trazos Gamma
     fig.add_trace(go.Scatter(x=tiempos, y=gammas_bs, mode='lines', name='BS Gamma', line=dict(color='#EF553B'), showlegend=False), row=1, col=2)
     fig.add_trace(go.Scatter(x=tiempos, y=gammas_he, mode='lines', name='Heston Gamma', line=dict(color='#636EFA', dash='dash'), showlegend=False), row=1, col=2)
     
-    # Trazos Vega
     fig.add_trace(go.Scatter(x=tiempos, y=vegas_bs, mode='lines', name='BS Vega', line=dict(color='#00CC96')), row=1, col=3)
 
     fig.update_xaxes(autorange="reversed", title_text="Tiempo al Vencimiento")
     fig.update_layout(height=450, hovermode="x unified", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
-    
     st.plotly_chart(fig, use_container_width=True)
 
 # --- PARTE B: Hedging ---
 st.divider()
 st.subheader("3. Optimización de Estrategia de Cobertura (Fricción)")
-costo_diario = simulate_delta_hedging(90, c_base, S0, K, T, r, sigma0)
-costo_semanal = simulate_delta_hedging(12, c_base, S0, K, T, r, sigma0)
+
+# Llamada a la función unificada con la validación de semilla
+costo_diario, costo_semanal, costo_diario_alto, costo_semanal_alto = calcular_simulaciones_hedging(S0, K, T, r, sigma0, c_base, c_alto, modo_presentacion)
 
 col_h1, col_h2 = st.columns(2)
 with col_h1:
@@ -149,7 +163,6 @@ with col_h2:
 st.divider()
 st.subheader("4. Pruebas de Estrés (Stress Tests)")
 
-# Cálculos
 vol_crisis = sigma0 * 1.5
 precio_crisis_bs = black_scholes_call(S0, K, T, r, vol_crisis)
 precio_crisis_he = heston_price(S0, K, T, r, kappa, theta, nu, vol_crisis**2, rho)
@@ -157,9 +170,6 @@ precio_crisis_he = heston_price(S0, K, T, r, kappa, theta, nu, vol_crisis**2, rh
 precio_kup = heston_price(S0, K, T, r, kappa * 1.2, theta, nu, v0, rho)
 precio_kdown = heston_price(S0, K, T, r, kappa * 0.8, theta, nu, v0, rho)
 
-costo_diario_alto = simulate_delta_hedging(90, 0.005, S0, K, T, r, sigma0)
-
-# Interfaz UI con Tarjetas
 col_s1, col_s2, col_s3 = st.columns(3)
 
 with col_s1:
@@ -174,8 +184,9 @@ with col_s2:
 
 with col_s3:
     st.error("🚨 **Mercados Ilíquidos (Costo 0.50%)**")
-    st.metric("Costo de Hedging Diario", f"${costo_diario_alto:.2f}", "Riesgo de Ruina por comisiones", delta_color="inverse")
-    st.markdown("*La estructura de costos obliga a reducir la frecuencia a nivel semanal para evitar la quiebra.*")
+    st.metric("Costo Hedging Diario", f"${costo_diario_alto:.2f}", "Riesgo de Ruina por comisiones", delta_color="inverse")
+    st.metric("Costo Hedging Semanal", f"${costo_semanal_alto:.2f}", "Alternativa de Supervivencia", delta_color="normal")
+    st.markdown("*La estructura de costos obliga a reducir la frecuencia a nivel semanal.*")
 
 st.divider()
-st.caption("🔍 **Metodología:** Proyecto construido como laboratorio de investigación cuantitativa. Se utilizó **Python**, **SciPy** (integración numérica) y **Streamlit / Plotly**. El código fue desarrollado con asistencia de inteligencia artificial para acelerar la interfaz de usuario interactiva y optimizar las visualizaciones de riesgo.")
+st.caption("🔍 **Metodología:** Proyecto construido como laboratorio de investigación cuantitativa. Se utilizó **Python**, **SciPy** (integración numérica) y **Streamlit / Plotly**. Código de fuente abierta para auditoría.")
