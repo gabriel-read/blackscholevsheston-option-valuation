@@ -1,11 +1,12 @@
 import streamlit as st
 import numpy as np
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from scipy.stats import norm
 from scipy.integrate import quad
 
 # --- Configuración de la página ---
-st.set_page_config(page_title="Option Pricing: BS vs Heston", layout="wide")
+st.set_page_config(page_title="Option Pricing: BS vs Heston", page_icon="📈", layout="wide")
 st.title("📈 Valoración Dinámica de Opciones: Black-Scholes vs. Heston")
 st.markdown("Comparativa cuantitativa del riesgo de mercado y evaluación de opciones asumiendo volatilidad constante vs. estocástica.")
 
@@ -58,7 +59,7 @@ def heston_price(S0, K, T, r, kappa, theta, nu, v0, rho):
 
 @st.cache_data
 def simulate_delta_hedging(N_steps, cost_rate, S0, K, T, r, sigma0):
-    np.random.seed(42)
+    np.random.seed(42) # Semilla fijada estrictamente para coincidir con el informe
     dt = T / N_steps
     S_path = [S0]
     for _ in range(N_steps):
@@ -83,16 +84,18 @@ bs_price = black_scholes_call(S0, K, T, r, sigma0)
 heston_p = heston_price(S0, K, T, r, kappa, theta, nu, v0, rho)
 model_risk = abs(bs_price - heston_p)
 
+st.divider()
 st.subheader("1. Comparativa de Precios (Riesgo de Modelo)")
 col1, col2, col3 = st.columns(3)
 col1.metric("Precio Black-Scholes", f"${bs_price:.2f}", "Volatilidad Constante", delta_color="off")
 col2.metric("Precio Heston", f"${heston_p:.2f}", "Volatilidad Estocástica", delta_color="off")
-col3.metric("Riesgo de Modelo (Diferencia)", f"${model_risk:.2f}", f"{(model_risk/heston_p)*100:.1f}% de sobrevaloración" if heston_p>0 else "")
+col3.metric("Riesgo de Modelo (Diferencia)", f"${model_risk:.2f}", f"{(model_risk/heston_p)*100:.1f}% de sobrevaloración" if heston_p>0 else "", delta_color="inverse")
 
-# --- Gráficas de Sensibilidad ---
-st.subheader("2. Evolución de las Griegas al Vencimiento (T -> 0)")
-with st.spinner('Calculando sensibilidades numéricas...'):
-    tiempos = np.linspace(T, 0.01, 15)
+# --- Gráficas de Sensibilidad (PLOTLY) ---
+st.divider()
+st.subheader("2. Evolución de las Griegas al Vencimiento (T → 0)")
+with st.spinner('Procesando simulación estocástica y derivadas numéricas...'):
+    tiempos = np.linspace(T, 0.01, 20)
     deltas_bs, gammas_bs, vegas_bs = [], [], []
     deltas_he, gammas_he = [], []
     dS = S0 * 0.01
@@ -104,79 +107,75 @@ with st.spinner('Calculando sensibilidades numéricas...'):
         gammas_bs.append(norm.pdf(d1) / (S0 * sigma0 * np.sqrt(t)))
         vegas_bs.append(S0 * norm.pdf(d1) * np.sqrt(t) / 100)
 
-        # Heston (Diferencias Finitas)
+        # Heston
         P_up = heston_price(S0 + dS, K, t, r, kappa, theta, nu, v0, rho)
         P_mid = heston_price(S0, K, t, r, kappa, theta, nu, v0, rho)
         P_down = heston_price(S0 - dS, K, t, r, kappa, theta, nu, v0, rho)
         deltas_he.append((P_up - P_down) / (2 * dS))
         gammas_he.append((P_up - 2 * P_mid + P_down) / (dS**2))
 
-    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 4))
+    # Creación de dashboard interactivo con Plotly
+    fig = make_subplots(rows=1, cols=3, subplot_titles=('Evolución de Delta (Δ)', 'Evolución de Gamma (Γ)', 'Evolución de Vega (V)'))
+    
+    # Trazos Delta
+    fig.add_trace(go.Scatter(x=tiempos, y=deltas_bs, mode='lines', name='BS Delta', line=dict(color='#EF553B')), row=1, col=1)
+    fig.add_trace(go.Scatter(x=tiempos, y=deltas_he, mode='lines', name='Heston Delta', line=dict(color='#636EFA', dash='dash')), row=1, col=1)
+    
+    # Trazos Gamma
+    fig.add_trace(go.Scatter(x=tiempos, y=gammas_bs, mode='lines', name='BS Gamma', line=dict(color='#EF553B'), showlegend=False), row=1, col=2)
+    fig.add_trace(go.Scatter(x=tiempos, y=gammas_he, mode='lines', name='Heston Gamma', line=dict(color='#636EFA', dash='dash'), showlegend=False), row=1, col=2)
+    
+    # Trazos Vega
+    fig.add_trace(go.Scatter(x=tiempos, y=vegas_bs, mode='lines', name='BS Vega', line=dict(color='#00CC96')), row=1, col=3)
 
-    ax1.plot(tiempos, deltas_bs, 'b-', label='Black-Scholes')
-    ax1.plot(tiempos, deltas_he, 'r--', label='Heston')
-    ax1.set_title('Evolución de Delta (Δ)')
-    ax1.invert_xaxis()
-    ax1.legend()
-    ax1.grid(True, alpha=0.3)
-
-    ax2.plot(tiempos, gammas_bs, 'b-', label='Black-Scholes')
-    ax2.plot(tiempos, gammas_he, 'r--', label='Heston')
-    ax2.set_title('Evolución de Gamma (Γ)')
-    ax2.invert_xaxis()
-    ax2.legend()
-    ax2.grid(True, alpha=0.3)
-
-    ax3.plot(tiempos, vegas_bs, 'g-', label='BS Vega (por 1%)')
-    ax3.set_title('Evolución de Vega (V)')
-    ax3.invert_xaxis()
-    ax3.legend()
-    ax3.grid(True, alpha=0.3)
-
-    st.pyplot(fig)
+    fig.update_xaxes(autorange="reversed", title_text="Tiempo al Vencimiento")
+    fig.update_layout(height=450, hovermode="x unified", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+    
+    st.plotly_chart(fig, use_container_width=True)
 
 # --- PARTE B: Hedging ---
+st.divider()
 st.subheader("3. Optimización de Estrategia de Cobertura (Fricción)")
 costo_diario = simulate_delta_hedging(90, c_base, S0, K, T, r, sigma0)
 costo_semanal = simulate_delta_hedging(12, c_base, S0, K, T, r, sigma0)
 
 col_h1, col_h2 = st.columns(2)
-col_h1.metric("Costo Hedging Diario (0.15%)", f"${costo_diario:.2f}", "Rebalanceo Agresivo", delta_color="inverse")
-col_h2.metric("Costo Hedging Semanal (0.15%)", f"${costo_semanal:.2f}", "Rebalanceo Óptimo", delta_color="normal")
+with col_h1:
+    st.metric("Costo Hedging Diario (0.15%)", f"${costo_diario:.2f}", "Rebalanceo Agresivo - Fricción Alta", delta_color="inverse")
+with col_h2:
+    st.metric("Costo Hedging Semanal (0.15%)", f"${costo_semanal:.2f}", "Zona Óptima de Tracking Error", delta_color="normal")
 
 # --- PARTE C: Stress Tests ---
-st.subheader("4. Stress Tests (Pruebas de Impacto)")
+st.divider()
+st.subheader("4. Pruebas de Estrés (Stress Tests)")
 
-# Shock Volatilidad
+# Cálculos
 vol_crisis = sigma0 * 1.5
 precio_crisis_bs = black_scholes_call(S0, K, T, r, vol_crisis)
 precio_crisis_he = heston_price(S0, K, T, r, kappa, theta, nu, vol_crisis**2, rho)
 
-# Shock Kappa
 precio_kup = heston_price(S0, K, T, r, kappa * 1.2, theta, nu, v0, rho)
 precio_kdown = heston_price(S0, K, T, r, kappa * 0.8, theta, nu, v0, rho)
 
-# Shock Costos
-c_alto = 0.005
-costo_diario_alto = simulate_delta_hedging(90, c_alto, S0, K, T, r, sigma0)
+costo_diario_alto = simulate_delta_hedging(90, 0.005, S0, K, T, r, sigma0)
 
+# Interfaz UI con Tarjetas
 col_s1, col_s2, col_s3 = st.columns(3)
+
 with col_s1:
-    st.markdown("**Shock de Volatilidad (+50%)**")
-    st.write(f"BS: **${precio_crisis_bs:.2f}** (+${precio_crisis_bs - bs_price:.2f})")
-    st.write(f"Heston: **${precio_crisis_he:.2f}** (+${precio_crisis_he - heston_p:.2f})")
+    st.info("📉 **Shock de Volatilidad (+50%)**")
+    st.metric("BS (Daño Permanente)", f"${precio_crisis_bs:.2f}", f"+${precio_crisis_bs - bs_price:.2f}", delta_color="inverse")
+    st.metric("Heston (Amortiguado)", f"${precio_crisis_he:.2f}", f"+${precio_crisis_he - heston_p:.2f}", delta_color="inverse")
 
 with col_s2:
-    st.markdown("**Incertidumbre Paramétrica (κ)**")
-    st.write(f"κ +20% (Rápido): **${precio_kup:.2f}**")
-    st.write(f"κ -20% (Lento): **${precio_kdown:.2f}**")
+    st.warning("⚖️ **Incertidumbre de Kappa (κ)**")
+    st.metric("κ +20% (Reversión Rápida)", f"${precio_kup:.2f}")
+    st.metric("κ -20% (Reversión Lenta)", f"${precio_kdown:.2f}")
 
 with col_s3:
-    st.markdown("**Mercados Ilíquidos (Costo 0.50%)**")
-    st.write(f"Hedging Diario: **${costo_diario_alto:.2f}**")
-    st.write(f"Riesgo de Ruina detectado.")
+    st.error("🚨 **Mercados Ilíquidos (Costo 0.50%)**")
+    st.metric("Costo de Hedging Diario", f"${costo_diario_alto:.2f}", "Riesgo de Ruina por comisiones", delta_color="inverse")
+    st.markdown("*La estructura de costos obliga a reducir la frecuencia a nivel semanal para evitar la quiebra.*")
 
-st.markdown("---")
-st.markdown("""
-**Metodología:** Proyecto construido como laboratorio de investigación cuantitativa. Se utilizó **Python**, **SciPy** (integración numérica) y **Streamlit**. El código fue desarrollado con la asistencia de IA para estructurar el análisis de estrés y optimizar el front-end interactivo.
-""")
+st.divider()
+st.caption("🔍 **Metodología:** Proyecto construido como laboratorio de investigación cuantitativa. Se utilizó **Python**, **SciPy** (integración numérica) y **Streamlit / Plotly**. El código fue desarrollado con asistencia de inteligencia artificial para acelerar la interfaz de usuario interactiva y optimizar las visualizaciones de riesgo.")
