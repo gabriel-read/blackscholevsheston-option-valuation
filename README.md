@@ -1,5 +1,10 @@
-# Dynamic Option Valuation and Risk Management
-🚀 **Live Web App:** https://blackscholevsheston-option-valuation.streamlit.app/ 
+# 📈 Dynamic Option Valuation: Black-Scholes vs. Heston
+
+![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)
+![Streamlit](https://img.shields.io/badge/Streamlit-Interactive-FF4B4B.svg)
+![Quant](https://img.shields.io/badge/Quantitative-Finance-green.svg)
+
+> **🚀 Live Web App:** [Test the Interactive Dashboard Here](https://blackscholevsheston-option-valuation.streamlit.app/)
 
 ## 1. Problem Statement
 This project focuses on the valuation and risk management of a portfolio consisting of **European Call Options** on a highly volatile technology stock. 
@@ -12,13 +17,13 @@ Traditional models like Black-Scholes assume constant volatility, which fails to
 The system is governed by coupled stochastic processes. While the stock price follows a Geometric Brownian Motion, the volatility itself follows a **mean-reverting Ornstein-Uhlenbeck process**.
 
 ### Key Concepts Implemented:
-* **Heston Model:** Incorporates stochastic variance to capture the "volatility smile".
+* **Heston Model:** Incorporates stochastic variance to capture the "volatility smile" using numerical integration in the complex plane.
 * **Mean Reversion ($\kappa$):** The speed at which volatility returns to its long-term average.
 * **Vega Hedging:** Management of portfolio sensitivity to changes in the underlying asset's volatility.
-* **Tracking Error:** Analysis of the hedging effectiveness considering transaction costs ($c = 0.15\%$).
+* **Tracking Error vs. Friction:** Analysis of the hedging effectiveness considering transaction costs ($c = 0.15\%$).
 
 ## 3. System Parameters
-The simulation and valuation in the interactive app are initialized with the following market data:
+The simulation and valuation in the interactive app are initialized with the following base market data:
 
 | Parameter | Symbol | Value |
 | :--- | :--- | :--- |
@@ -29,33 +34,36 @@ The simulation and valuation in the interactive app are initialized with the fol
 | Initial Volatility | $\sigma_0$ | 35% annual |
 | Mean Reversion Speed | $\kappa$ | 2.5 |
 | Long-term Volatility | $\overline{\sigma}$ | 30% annual |
-| Volatility of Volatility | $v$ | 0.15 |
+| Volatility of Volatility | $\nu$ | 0.15 |
 
-## 4. Analysis and Results
+## 4. Interactive Analysis and Results
 
-### Comparison of Models (Part A)
-![Evolución de las Griegas](docs/Figure_1.png)
-Quantitative analysis of the valuation gap between Black-Scholes and Heston. It includes the evolution of the "Greeks" (Delta, Gamma, Vega) over time, which can be visualized dynamically in the web app.
+### Comparison of Models & Greeks (Part A)
+Quantitative analysis of the valuation gap (Model Risk) between Black-Scholes and Heston. It includes the evolution of the "Greeks" ($\Delta$, $\Gamma$, $V$) over time, visualized dynamically using **Plotly** to demonstrate how stochastic uncertainty flattens the acute risk peaks predicted by classic models.
 
 ### Hedging Optimization (Part B)
-Evaluation of the optimal **Delta-Hedging** frequency to minimize the tracking error while balancing transaction costs.
+Evaluation of the optimal **Delta-Hedging** frequency. A Monte Carlo simulation engine projects price paths to minimize tracking error while avoiding capital hemorrhage from transaction costs (comparing Daily vs. Weekly rebalancing).
 
 ### Sensitivity Analysis (Part C)
 Stress testing the portfolio against:
 * **Volatility Shocks:** 50% increase in volatility (crisis events).
-* **Parametric Uncertainty:** $\pm20\%$ error in mean reversion estimates.
-* **Transaction Costs:** Impact of cost increases (up to 0.5%) on rebalancing frequency.
+* **Parametric Uncertainty:** $\pm 20\%$ error in mean reversion estimates.
+* **Illiquid Markets:** Impact of transaction cost increases (up to 0.50%), demonstrating the risk of ruin for high-frequency rebalancing.
 
-## 5. Requirements and Local Execution
+## 5. 📂 Theoretical Documentation
+To audit the mathematical foundation and the business case behind this codebase, refer to the documents provided in the `/docs/` folder:
+* [Mathematical Formulas and PDE Developments](./docs/formulas%20usadas.pdf)
+* [Case Study Presentation & Theoretical Framework](./docs/Stochastic_Volatility_Management.pdf)
+
+## 6. Requirements and Local Execution
 To run this interactive dashboard locally, ensure you have Python 3.x installed along with the following libraries:
 * `streamlit`
 * `numpy`
 * `scipy`
+* `plotly`
 * `matplotlib`
 
 **Steps to run:**
-1. Clone the repository.
-2. Install dependencies: `pip install -r requirements.txt`
-3. Execute the Streamlit app:
+1. Clone the repository:
    ```bash
-   streamlit run app.py
+   git clone [https://github.com/YOUR_USERNAME/blackscholevsheston-option-valuation.git](https://github.com/YOUR_USERNAME/blackscholevsheston-option-valuation.git)
